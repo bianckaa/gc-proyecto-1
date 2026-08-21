@@ -32,7 +32,6 @@ pub fn draw_welcome(framebuffer: &mut Framebuffer) {
     vine_frame(framebuffer);
     draw_text_centered(framebuffer, 110, 8, 0xD8E0C0, "MAZE");
     draw_text_centered(framebuffer, 200, 8, 0xB5561F, "RUNNER");
-    draw_text_centered(framebuffer, 320, 2, 0x8A8A80, "PROYECTO 1 - RAY CASTER - CC2018 UVG");
     draw_text_centered(framebuffer, 390, 3, 0xFFE066, "ENTER PARA ELEGIR SECTOR");
     draw_text_centered(framebuffer, 440, 2, 0x6E7062, "ESC PARA SALIR");
     draw_text_centered(
