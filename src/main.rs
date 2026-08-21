@@ -12,7 +12,7 @@ use minifb::{Key, Window, WindowOptions};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
 
-use crate::audio::Audio;
+use crate::audio::{Audio, MENU_MUSIC};
 use crate::caster::cast_ray;
 use crate::framebuffer::{shade, Framebuffer};
 use crate::maze::{load_maze, Maze};
@@ -125,10 +125,17 @@ fn main() {
         Level {
             name: "El Glade".to_string(),
             path: "mazes/glade.txt".to_string(),
+            music: "assets/audio/glade.mp3".to_string(),
         },
         Level {
             name: "Sector Oeste".to_string(),
             path: "mazes/sector_oeste.txt".to_string(),
+            music: "assets/audio/sector_oeste.mp3".to_string(),
+        },
+        Level {
+            name: "El Laberinto Central".to_string(),
+            path: "mazes/laberinto_central.txt".to_string(),
+            music: "assets/audio/laberinto_central.mp3".to_string(),
         },
     ];
 
@@ -164,6 +171,7 @@ fn main() {
     let mut enter_was_down = false;
     let mut up_was_down = false;
     let mut down_was_down = false;
+    let mut escape_was_down = false;
     let mut thud_cooldown = 0u32;
     let mut fps = 15u32;
     let mut fps_frames = 0u32;
@@ -186,7 +194,9 @@ fn main() {
         let down_pressed = down_down && !down_was_down;
         down_was_down = down_down;
 
-        let escape = window.is_key_down(Key::Escape);
+        let escape_down = window.is_key_down(Key::Escape);
+        let escape = escape_down && !escape_was_down;
+        escape_was_down = escape_down;
 
         framebuffer.clear();
 
@@ -195,7 +205,7 @@ fn main() {
                 if escape {
                     break;
                 }
-                audio.stop_music();
+                audio.play_music(MENU_MUSIC);
                 draw_welcome(&mut framebuffer);
                 if enter_pressed {
                     screen = Screen::LevelSelect;
@@ -211,6 +221,7 @@ fn main() {
                 if down_pressed && selected + 1 < levels.len() {
                     selected += 1;
                 }
+                audio.play_music(MENU_MUSIC);
                 draw_level_select(&mut framebuffer, &levels, selected);
                 if enter_pressed {
                     let level = &levels[selected];
@@ -221,7 +232,7 @@ fn main() {
                     mouse.reset();
                     thud_cooldown = 0;
                     run_start = Instant::now();
-                    audio.start_music();
+                    audio.play_music(&levels[selected].music);
                     screen = Screen::Playing;
                 }
             }

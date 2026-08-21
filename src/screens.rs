@@ -4,6 +4,7 @@ use crate::text::{draw_text, draw_text_centered, text_width};
 pub struct Level {
     pub name: String,
     pub path: String,
+    pub music: String,
 }
 
 fn backdrop(framebuffer: &mut Framebuffer) {

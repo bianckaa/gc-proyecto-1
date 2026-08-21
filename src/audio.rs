@@ -1,10 +1,16 @@
+use std::fs::File;
+use std::io::BufReader;
 use std::sync::Arc;
 use std::time::Duration;
 
 use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
+use rodio::decoder::LoopedDecoder;
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
 const SAMPLE_RATE: u32 = 44100;
+
+pub const MENU_MUSIC: &str = "assets/audio/menu.mp3";
+const VICTORY_PATH: &str = "assets/audio/victoria.wav";
 
 struct LoopedTrack {
     samples: Arc<Vec<f32>>,
@@ -181,10 +187,46 @@ fn build_victory() -> Vec<f32> {
     buffer
 }
 
+fn open_looped(path: &str) -> Option<LoopedDecoder<BufReader<File>>> {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(_) => {
+            println!("no se encontro el archivo de audio {path}, se usa la pista generada por codigo");
+            return None;
+        }
+    };
+    match Decoder::new_looped(BufReader::new(file)) {
+        Ok(decoder) => Some(decoder),
+        Err(_) => {
+            println!("no se pudo decodificar {path}, se usa la pista generada por codigo");
+            None
+        }
+    }
+}
+
+fn open_once(path: &str) -> Option<Decoder<BufReader<File>>> {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(_) => {
+            println!("no se encontro el archivo de audio {path}, se usa el efecto generado por codigo");
+            return None;
+        }
+    };
+    match Decoder::new(BufReader::new(file)) {
+        Ok(decoder) => Some(decoder),
+        Err(_) => {
+            println!("no se pudo decodificar {path}, se usa el efecto generado por codigo");
+            None
+        }
+    }
+}
+
 pub struct Audio {
     _stream: Option<OutputStream>,
     handle: Option<OutputStreamHandle>,
     music: Option<Sink>,
+    victory_sink: Option<Sink>,
+    current_track: String,
     music_samples: Arc<Vec<f32>>,
     thud: Arc<Vec<f32>>,
     victory: Arc<Vec<f32>>,
@@ -197,6 +239,8 @@ impl Audio {
                 _stream: Some(stream),
                 handle: Some(handle),
                 music: None,
+                victory_sink: None,
+                current_track: String::new(),
                 music_samples: Arc::new(build_music()),
                 thud: Arc::new(build_thud()),
                 victory: Arc::new(build_victory()),
@@ -207,6 +251,8 @@ impl Audio {
                     _stream: None,
                     handle: None,
                     music: None,
+                    victory_sink: None,
+                    current_track: String::new(),
                     music_samples: Arc::new(Vec::new()),
                     thud: Arc::new(Vec::new()),
                     victory: Arc::new(Vec::new()),
@@ -215,10 +261,12 @@ impl Audio {
         }
     }
 
-    pub fn start_music(&mut self) {
-        if self.music.is_some() {
+    pub fn play_music(&mut self, path: &str) {
+        self.stop_victory();
+        if self.current_track == path {
             return;
         }
+        self.stop_music();
         let handle = match &self.handle {
             Some(handle) => handle,
             None => return,
@@ -228,17 +276,22 @@ impl Audio {
             Err(_) => return,
         };
         sink.set_volume(0.35);
-        sink.append(LoopedTrack {
-            samples: Arc::clone(&self.music_samples),
-            index: 0,
-        });
+        match open_looped(path) {
+            Some(decoder) => sink.append(decoder),
+            None => sink.append(LoopedTrack {
+                samples: Arc::clone(&self.music_samples),
+                index: 0,
+            }),
+        }
         self.music = Some(sink);
+        self.current_track = path.to_string();
     }
 
     pub fn stop_music(&mut self) {
         if let Some(sink) = self.music.take() {
             sink.stop();
         }
+        self.current_track.clear();
     }
 
     fn play_once(&self, samples: &Arc<Vec<f32>>, volume: f32) {
@@ -257,7 +310,35 @@ impl Audio {
         self.play_once(&self.thud, 0.7);
     }
 
-    pub fn play_victory(&self) {
-        self.play_once(&self.victory, 0.9);
+    pub fn stop_victory(&mut self) {
+        if let Some(sink) = self.victory_sink.take() {
+            sink.stop();
+        }
+    }
+
+    pub fn play_victory(&mut self) {
+        let handle = match &self.handle {
+            Some(handle) => handle,
+            None => return,
+        };
+        let sink = match Sink::try_new(handle) {
+            Ok(sink) => sink,
+            Err(_) => return,
+        };
+        sink.set_volume(0.9);
+        match open_once(VICTORY_PATH) {
+            Some(decoder) => sink.append(decoder),
+            None => {
+                if self.victory.is_empty() {
+                    return;
+                }
+                sink.append(SamplesBuffer::new(
+                    1,
+                    SAMPLE_RATE,
+                    self.victory.as_slice().to_vec(),
+                ));
+            }
+        }
+        self.victory_sink = Some(sink);
     }
 }
