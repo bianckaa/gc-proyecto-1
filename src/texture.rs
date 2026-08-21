@@ -110,25 +110,6 @@ fn vine_texture() -> Texture {
     }
 }
 
-fn load_from_file(path: &str) -> Option<Texture> {
-    let image = image::open(path).ok()?;
-    let rgb = image.to_rgb8();
-    let width = rgb.width() as usize;
-    let height = rgb.height() as usize;
-    if width == 0 || height == 0 {
-        return None;
-    }
-    let mut pixels = Vec::with_capacity(width * height);
-    for pixel in rgb.pixels() {
-        pixels.push(((pixel[0] as u32) << 16) | ((pixel[1] as u32) << 8) | pixel[2] as u32);
-    }
-    Some(Texture {
-        width,
-        height,
-        pixels,
-    })
-}
-
 pub struct TextureSet {
     pub stone: Texture,
     pub metal: Texture,
@@ -137,9 +118,9 @@ pub struct TextureSet {
 
 impl TextureSet {
     pub fn load() -> Self {
-        let stone = load_from_file("assets/textures/stone.png").unwrap_or_else(stone_texture);
-        let metal = load_from_file("assets/textures/metal.png").unwrap_or_else(metal_texture);
-        let vine = load_from_file("assets/textures/vine.png").unwrap_or_else(vine_texture);
+        let stone = stone_texture();
+        let metal = metal_texture();
+        let vine = vine_texture();
         TextureSet { stone, metal, vine }
     }
 
